@@ -1,0 +1,57 @@
+{
+  "name": "preemie-support-backend",
+  "version": "1.0.0",
+  "description": "Backend למערכת תמיכה לאימהות לתינוקות פגים: צ'אטים, לוח זמנים, התראות בזמן אמת ומאמרים",
+  "private": true,
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "start:prod": "prisma migrate deploy && node dist/server.js",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "seed": "tsx src/seed/seed.ts",
+    "seed:prod": "node dist/seed/seed.js",
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx src/seed/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "prisma": "^6.1.0",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.0",
+    "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.7",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,26 @@
+# הגדרת העלאה ל-Render (Blueprint). מסד הנתונים PostgreSQL נוצר בנפרד (למשל ב-Supabase)
+# ומוזן כאן במשתנה DATABASE_URL, כי מסד חינמי של Render פג תוקפו אחרי תקופה קצרה.
+services:
+  - type: web
+    name: preemie-support-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install --include=dev && npm run build
+    # מריץ Migrations על מסד הנתונים ואז מפעיל את השרת
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # סודות: מזינים ידנית במסך Environment ב-Render (sync: false = לא נשמר בקובץ)
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SEED_STAFF_PASSWORD
+        sync: false

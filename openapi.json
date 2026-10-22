@@ -1,0 +1,2965 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API למערכת תמיכה לאמהות של פגים",
+    "version": "1.0.0",
+    "description": "Backend למערכת תמיכה לאמהות של תינוקות פגים: לוח זמנים, צ'אטים, התראות, מאמרים.\n\n**איך מתחברים כאן:** קוראים ל-`POST /api/auth/login`, מעתיקים את ה-token מהתשובה, לוחצים על Authorize ומדביקים אותו.\n\n**זמן אמת:** התראות והודעות חדשות מגיעות דרך Socket.IO (ראו FRONTEND-API-GUIDE.md). Swagger לא מדגים WebSocket."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "השרת הנוכחי"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "הרשמה והתחברות"
+    },
+    {
+      "name": "Profile",
+      "description": "פרופיל אמא ותינוק"
+    },
+    {
+      "name": "Users",
+      "description": "רשימות אמהות ואנשי צוות"
+    },
+    {
+      "name": "Schedule",
+      "description": "לוח זמנים: תורים ומשימות טיפול"
+    },
+    {
+      "name": "Conversations",
+      "description": "צ'אטים"
+    },
+    {
+      "name": "Notifications",
+      "description": "התראות"
+    },
+    {
+      "name": "Articles",
+      "description": "מאמרים"
+    },
+    {
+      "name": "HealthFunds",
+      "description": "קישורים לקופות החולים"
+    },
+    {
+      "name": "System",
+      "description": "בדיקת תקינות"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "בדיקת תקינות השרת ומסד הנתונים",
+        "responses": {
+          "200": {
+            "description": "תקין",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "מסד הנתונים לא זמין",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "הרשמת אמא חדשה (כולל פרטי התינוק)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "נרשמה בהצלחה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "האימייל כבר רשום (EMAIL_TAKEN)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "יותר מדי ניסיונות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "התחברות (אמא או איש צוות)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "מחוברת",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "אימייל או סיסמה שגויים (INVALID_CREDENTIALS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "יותר מדי ניסיונות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "פרטי המשתמש/ת המחוברים",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "המשתמש/ת",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/Self"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "הפרופיל המשותף של האמא והתינוק (אמהות בלבד)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "הפרופיל",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/Self"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "עריכת הפרופיל (אמהות בלבד). שדה שלא נשלח לא משתנה.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "הפרופיל המעודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/Self"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "האימייל כבר רשום",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profile/avatar": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "העלאת תמונת פרופיל (data URL, עד 200KB)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "image"
+                ],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "example": "data:image/png;base64,iVBORw0KGgo..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "נשמרה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "avatar": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "מחיקת תמונת פרופיל (חוזרים לעיגול עם האות הראשונה)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "נמחקה"
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mothers": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "רשימת אמהות רשומות (שם, תמונה ועיר בלבד), לפתיחת שיחה או לבחירה בלו\"ז",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "חיפוש לפי שם"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "maximum": 100
+            },
+            "description": "מספר תוצאות"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "רשימה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mothers": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MotherListItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mothers/{id}/profile": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "פרופיל מלא של אמא ותינוק, לצפייה בלבד (צוות בלבד)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "הפרופיל",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/Self"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "רשימת אנשי צוות",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "חיפוש לפי שם"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "maximum": 100
+            },
+            "description": "מספר תוצאות"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "רשימה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "staff": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StaffListItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedule": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "הלו\"ז שלי. אמא: הפריטים שלה. איש צוות: הפגישות שלו.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "מתאריך"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "עד תאריך"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "APPOINTMENT",
+                "CARE_TASK"
+              ]
+            },
+            "description": "סינון לפי קטגוריה"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MEDICAL_CHECKUP",
+                "WELL_BABY_CLINIC",
+                "SPEECH_THERAPY",
+                "PHYSIOTHERAPY",
+                "SCHEDULED_CHAT",
+                "STAFF_MEETING",
+                "OTHER_APPOINTMENT",
+                "MEDICATION",
+                "VITAMINS",
+                "INHALATION",
+                "FEEDING",
+                "PHYSIO_EXERCISES",
+                "OTHER_CARE_TASK"
+              ]
+            },
+            "description": "סינון לפי סוג"
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "איש צוות בלבד: סינון לפי אמא"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 500,
+              "maximum": 1000
+            },
+            "description": "מספר תוצאות"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "הפריטים לפי סדר זמן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScheduleItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "יצירת פריט בלו\"ז, אפשר גם פריט חוזר (נוצרים פריטים נפרדים)",
+        "description": "אמא: יוצרת לעצמה כל קטגוריה וסוג, ויכולה לציין withWhom (שם גורם שאינו רשום במערכת).\n\nאיש צוות: חובה ownerId (האמא), רק צ'אט מתוזמן / פגישה עם צוות. האמא מקבלת התראה עם קישור ליומן.\n\nrecurrence: every + unit + (count או until). עד 365 פריטים.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "נוצר",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScheduleItem"
+                      }
+                    },
+                    "seriesId": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedule/{id}": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "פריט אחד בלו\"ז",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "הפריט",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "item": {
+                      "$ref": "#/components/schemas/ScheduleItem"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "עריכת פריט (רק מי שיצר/ה אותו). scope=series משנה את כל הסדרה.",
+        "description": "בעריכת סדרה (scope=series) שינוי startAt משנה רק את **שעת היום** של כל הפריטים. התאריכים נשארים.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScheduleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "הפריטים המעודכנים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScheduleItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "מחיקת פריט (רק מי שיצר/ה אותו). scope=series מוחק את כל הסדרה.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "single",
+                "series"
+              ],
+              "default": "single"
+            },
+            "description": "single: הפריט הזה בלבד. series: כל הפריטים באותה סדרה חוזרת."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "נמחק",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations": {
+      "get": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "כל השיחות שלי. שיחה עם הודעה שלא נקראה מסומנת (hasUnread, unreadCount).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "השיחות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Conversation"
+                      }
+                    },
+                    "totalUnread": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/direct": {
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "פתיחת שיחה פרטית עם משתמש/ת, או החזרת הקיימת",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userId"
+                ],
+                "properties": {
+                  "userId": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "השיחה הקיימת",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversation": {
+                      "$ref": "#/components/schemas/Conversation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "שיחה חדשה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversation": {
+                      "$ref": "#/components/schemas/Conversation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{id}/messages": {
+      "get": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "הודעות בשיחה (מהישנה לחדשה). beforeId לטעינת הודעות ישנות יותר.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "beforeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "הודעות שקדמו להודעה הזו"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            },
+            "description": "מספר הודעות"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "הודעות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Message"
+                      }
+                    },
+                    "hasMore": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "שליחת הודעה",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "נשלחה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "$ref": "#/components/schemas/Message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{id}/read": {
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "סימון השיחה כנקראה (מסיר את סימון ה\"לא נקרא\" ואת ההתראות של השיחה)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "בוצע",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "דף ההתראות שלי (מהחדשה לישנה)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false"
+            },
+            "description": "רק שלא נקראו"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            },
+            "description": "מספר תוצאות"
+          },
+          {
+            "name": "beforeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "התראות ישנות מהמזהה הזה"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ההתראות",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notifications": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Notification"
+                      }
+                    },
+                    "unreadCount": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "סימון כל ההתראות כנקראו",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "בוצע",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "סימון התראה אחת כנקראה",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ההתראה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notification": {
+                      "$ref": "#/components/schemas/Notification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles": {
+      "get": {
+        "tags": [
+          "Articles"
+        ],
+        "summary": "רשימת מאמרים, עם חיפוש וסינון",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "חיפוש בכותרת, בתקציר ובשם המקור"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FEEDING",
+                "DEVELOPMENT",
+                "SLEEP",
+                "EMOTIONAL_SUPPORT",
+                "TREATMENTS",
+                "RIGHTS",
+                "OTHER"
+              ]
+            },
+            "description": "קטגוריה"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "external",
+                "staff"
+              ]
+            },
+            "description": "external: מאמר חיצוני. staff: מאמר צוות."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            },
+            "description": "מספר תוצאות"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "דילוג"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "המאמרים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "articles": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Article"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Articles"
+        ],
+        "summary": "הוספת מאמר (צוות בלבד). חיצוני: sourceName + sourceUrl. מאמר צוות: body.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArticleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "נוצר",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "article": {
+                      "$ref": "#/components/schemas/Article"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles/{id}": {
+      "get": {
+        "tags": [
+          "Articles"
+        ],
+        "summary": "מאמר אחד (כולל טקסט מלא במאמר צוות)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "המאמר",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "article": {
+                      "$ref": "#/components/schemas/Article"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Articles"
+        ],
+        "summary": "עריכת מאמר (רק איש הצוות שהוסיף אותו)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateArticleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "המאמר המעודכן",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "article": {
+                      "$ref": "#/components/schemas/Article"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "נתונים לא תקינים (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Articles"
+        ],
+        "summary": "מחיקת מאמר (רק איש הצוות שהוסיף אותו)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "נמחק"
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "אין הרשאה",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "לא נמצא",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health-funds": {
+      "get": {
+        "tags": [
+          "HealthFunds"
+        ],
+        "summary": "קישורים לאתרי קופות החולים (לצד מסך הלו\"ז)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "הקישורים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "healthFunds": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "לא מחוברת, או Token לא תקין / פג תוקף",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "database": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "description": "פירוט שגיאות לפי שדה (בשגיאות ולידציה)"
+              }
+            }
+          }
+        }
+      },
+      "Baby": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gestationalWeek": {
+            "type": "integer",
+            "minimum": 22,
+            "maximum": 37
+          },
+          "birthWeightGrams": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "BabyInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "birthDate",
+          "gestationalWeek",
+          "birthWeightGrams"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "נועם"
+          },
+          "birthDate": {
+            "type": "string",
+            "example": "2026-09-01"
+          },
+          "gestationalWeek": {
+            "type": "integer",
+            "example": 31
+          },
+          "birthWeightGrams": {
+            "type": "integer",
+            "example": 1400
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Self": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MOTHER",
+              "STAFF"
+            ]
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "data URL, או null (מציגים עיגול עם האות הראשונה)"
+          },
+          "staffRole": {
+            "type": "string",
+            "enum": [
+              "NURSE",
+              "SOCIAL_WORKER",
+              "DEVELOPMENTAL_THERAPIST"
+            ],
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "baby": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Baby"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "UserSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MOTHER",
+              "STAFF"
+            ]
+          },
+          "staffRole": {
+            "type": "string",
+            "enum": [
+              "NURSE",
+              "SOCIAL_WORKER",
+              "DEVELOPMENTAL_THERAPIST"
+            ],
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MotherListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "StaffListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "staffRole": {
+            "type": "string",
+            "enum": [
+              "NURSE",
+              "SOCIAL_WORKER",
+              "DEVELOPMENTAL_THERAPIST"
+            ],
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "phone",
+          "email",
+          "password",
+          "baby"
+        ],
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "example": "שרה"
+          },
+          "lastName": {
+            "type": "string",
+            "example": "כהן"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0501234567"
+          },
+          "email": {
+            "type": "string",
+            "example": "sara@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Password123"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "baby": {
+            "$ref": "#/components/schemas/BabyInput"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "sara@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "Password123"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/Self"
+          }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "description": "כל שדה אופציונלי",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "baby": {
+            "type": "object",
+            "description": "כל שדה של התינוק אופציונלי",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "birthDate": {
+                "type": "string"
+              },
+              "gestationalWeek": {
+                "type": "integer"
+              },
+              "birthWeightGrams": {
+                "type": "integer"
+              },
+              "notes": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "ScheduleItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "APPOINTMENT",
+              "CARE_TASK"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MEDICAL_CHECKUP",
+              "WELL_BABY_CLINIC",
+              "SPEECH_THERAPY",
+              "PHYSIOTHERAPY",
+              "SCHEDULED_CHAT",
+              "STAFF_MEETING",
+              "OTHER_APPOINTMENT",
+              "MEDICATION",
+              "VITAMINS",
+              "INHALATION",
+              "FEEDING",
+              "PHYSIO_EXERCISES",
+              "OTHER_CARE_TASK"
+            ],
+            "description": "תורים: MEDICAL_CHECKUP, WELL_BABY_CLINIC, SPEECH_THERAPY, PHYSIOTHERAPY, SCHEDULED_CHAT, STAFF_MEETING, OTHER_APPOINTMENT. משימות טיפול: MEDICATION, VITAMINS, INHALATION, FEEDING, PHYSIO_EXERCISES, OTHER_CARE_TASK"
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "withWhom": {
+            "type": "string",
+            "nullable": true
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "seriesId": {
+            "type": "string",
+            "nullable": true
+          },
+          "owner": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "staff": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "createdByRole": {
+            "type": "string",
+            "enum": [
+              "MOTHER",
+              "STAFF"
+            ]
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "האם המשתמש/ת המחוברים רשאים לערוך ולמחוק"
+          }
+        }
+      },
+      "CreateScheduleRequest": {
+        "type": "object",
+        "required": [
+          "category",
+          "type",
+          "title",
+          "startAt"
+        ],
+        "properties": {
+          "ownerId": {
+            "type": "integer",
+            "description": "איש צוות בלבד: מזהה האמא"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "APPOINTMENT",
+              "CARE_TASK"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MEDICAL_CHECKUP",
+              "WELL_BABY_CLINIC",
+              "SPEECH_THERAPY",
+              "PHYSIOTHERAPY",
+              "SCHEDULED_CHAT",
+              "STAFF_MEETING",
+              "OTHER_APPOINTMENT",
+              "MEDICATION",
+              "VITAMINS",
+              "INHALATION",
+              "FEEDING",
+              "PHYSIO_EXERCISES",
+              "OTHER_CARE_TASK"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "example": "ביקור בטיפת חלב"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "withWhom": {
+            "type": "string",
+            "nullable": true,
+            "example": "ד\"ר לוי"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-01T08:00:00Z"
+          },
+          "timeZone": {
+            "type": "string",
+            "default": "Asia/Jerusalem"
+          },
+          "recurrence": {
+            "type": "object",
+            "properties": {
+              "every": {
+                "type": "integer",
+                "example": 1
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "DAY",
+                  "WEEK",
+                  "MONTH"
+                ]
+              },
+              "count": {
+                "type": "integer",
+                "description": "מספר הופעות כולל. בדיוק אחד מ-count / until."
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "UpdateScheduleRequest": {
+        "type": "object",
+        "description": "כל שדה אופציונלי, אבל חובה לשלוח לפחות אחד",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "MEDICAL_CHECKUP",
+              "WELL_BABY_CLINIC",
+              "SPEECH_THERAPY",
+              "PHYSIOTHERAPY",
+              "SCHEDULED_CHAT",
+              "STAFF_MEETING",
+              "OTHER_APPOINTMENT",
+              "MEDICATION",
+              "VITAMINS",
+              "INHALATION",
+              "FEEDING",
+              "PHYSIO_EXERCISES",
+              "OTHER_CARE_TASK"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "withWhom": {
+            "type": "string",
+            "nullable": true
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "single",
+              "series"
+            ],
+            "default": "single"
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "conversationId": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/UserSummary"
+          }
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "DIRECT"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "withUser": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserSummary"
+              }
+            ],
+            "nullable": true
+          },
+          "lastMessage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              }
+            ],
+            "nullable": true
+          },
+          "unreadCount": {
+            "type": "integer"
+          },
+          "hasUnread": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "NEW_MESSAGE",
+              "NEW_CHAT",
+              "APPOINTMENT_REMINDER",
+              "CARE_TASK_REMINDER",
+              "APPOINTMENT_CREATED_BY_STAFF"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "link": {
+            "type": "string",
+            "nullable": true
+          },
+          "conversationId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "scheduleItemId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "isRead": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Article": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "external",
+              "staff"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "FEEDING",
+              "DEVELOPMENT",
+              "SLEEP",
+              "EMOTIONAL_SUPPORT",
+              "TREATMENTS",
+              "RIGHTS",
+              "OTHER"
+            ]
+          },
+          "sourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "nullable": true,
+            "description": "רק בקריאה של מאמר בודד"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserSummary"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canEdit": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateArticleRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "summary",
+          "category"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "FEEDING",
+              "DEVELOPMENT",
+              "SLEEP",
+              "EMOTIONAL_SUPPORT",
+              "TREATMENTS",
+              "RIGHTS",
+              "OTHER"
+            ]
+          },
+          "sourceName": {
+            "type": "string",
+            "description": "מאמר חיצוני"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "מאמר חיצוני"
+          },
+          "body": {
+            "type": "string",
+            "description": "מאמר צוות"
+          }
+        }
+      },
+      "UpdateArticleRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "FEEDING",
+              "DEVELOPMENT",
+              "SLEEP",
+              "EMOTIONAL_SUPPORT",
+              "TREATMENTS",
+              "RIGHTS",
+              "OTHER"
+            ]
+          },
+          "sourceName": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
