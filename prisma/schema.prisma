@@ -1,0 +1,214 @@
+// סכמת מסד הנתונים (PostgreSQL) של מערכת התמיכה לאימהות לתינוקות פגים.
+// כל טבלה כאן תואמת לאפיון שאושר.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MOTHER
+  STAFF
+}
+
+enum StaffRole {
+  NURSE
+  SOCIAL_WORKER
+  DEVELOPMENTAL_THERAPIST
+}
+
+enum ScheduleCategory {
+  APPOINTMENT
+  CARE_TASK
+}
+
+enum ScheduleType {
+  // סוגי תור / פגישה (קטגוריה APPOINTMENT)
+  MEDICAL_CHECKUP
+  WELL_BABY_CLINIC
+  SPEECH_THERAPY
+  PHYSIOTHERAPY
+  SCHEDULED_CHAT
+  STAFF_MEETING
+  OTHER_APPOINTMENT
+  // סוגי משימת טיפול (קטגוריה CARE_TASK)
+  MEDICATION
+  VITAMINS
+  INHALATION
+  FEEDING
+  PHYSIO_EXERCISES
+  OTHER_CARE_TASK
+}
+
+enum ConversationType {
+  GENERAL
+  DIRECT
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  NEW_CHAT
+  APPOINTMENT_REMINDER
+  CARE_TASK_REMINDER
+  APPOINTMENT_CREATED_BY_STAFF
+}
+
+enum ArticleCategory {
+  FEEDING
+  DEVELOPMENT
+  SLEEP
+  EMOTIONAL_SUPPORT
+  TREATMENTS
+  RIGHTS
+  OTHER
+}
+
+/// משתמש/ת: אמא או איש צוות
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  passwordHash String
+  role         Role
+  firstName    String
+  lastName     String
+  phone        String
+  city         String?
+  avatarData   String?
+  staffRole    StaffRole?
+  createdAt    DateTime   @default(now())
+
+  baby                    Baby?
+  ownedScheduleItems      ScheduleItem[]       @relation("ScheduleItemOwner")
+  createdScheduleItems    ScheduleItem[]       @relation("ScheduleItemCreator")
+  staffScheduleItems      ScheduleItem[]       @relation("ScheduleItemStaff")
+  conversationMemberships ConversationMember[]
+  sentMessages            Message[]
+  notifications           Notification[]
+  articles                Article[]
+
+  @@index([role])
+}
+
+/// תינוק: תינוק אחד לכל אמא
+model Baby {
+  id               Int      @id @default(autoincrement())
+  motherId         Int      @unique
+  name             String
+  birthDate        DateTime
+  gestationalWeek  Int
+  birthWeightGrams Int
+  notes            String?
+
+  mother User @relation(fields: [motherId], references: [id], onDelete: Cascade)
+}
+
+/// פריט בלוח הזמנים: תור, פגישה או משימת טיפול
+model ScheduleItem {
+  id          Int              @id @default(autoincrement())
+  ownerId     Int
+  createdById Int
+  staffId     Int?
+  withWhom    String?
+  category    ScheduleCategory
+  type        ScheduleType
+  title       String
+  notes       String?
+  startAt     DateTime
+  seriesId    String?
+
+  owner         User           @relation("ScheduleItemOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdBy     User           @relation("ScheduleItemCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  staff         User?          @relation("ScheduleItemStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([ownerId, startAt])
+  @@index([staffId, startAt])
+  @@index([seriesId])
+}
+
+/// שיחה: הצ'אט הכללי או שיחה פרטית בין שני משתמשים
+model Conversation {
+  id        Int              @id @default(autoincrement())
+  type      ConversationType
+  /// מפתח ייחודי לשיחה פרטית ("3-7", המזהה הקטן קודם). מונע שיחה כפולה בין אותם שניים.
+  directKey String?          @unique
+  createdAt DateTime         @default(now())
+
+  members       ConversationMember[]
+  messages      Message[]
+  notifications Notification[]
+}
+
+/// חברות בשיחה, ומתי המשתמש/ת קראה לאחרונה (לספירת הודעות שלא נקראו)
+model ConversationMember {
+  id             Int       @id @default(autoincrement())
+  conversationId Int
+  userId         Int
+  lastReadAt     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+/// הודעת צ'אט
+model Message {
+  id             Int      @id @default(autoincrement())
+  conversationId Int
+  senderId       Int
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, id])
+}
+
+/// התראה שנשמרת למשתמש/ת (חלונית קופצת + דף התראות)
+model Notification {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  type           NotificationType
+  title          String
+  body           String
+  count          Int              @default(1)
+  link           String?
+  conversationId Int?
+  scheduleItemId Int?
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  scheduleItem ScheduleItem? @relation(fields: [scheduleItemId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleItemId, userId, type])
+  @@index([userId, isRead, createdAt])
+  @@index([conversationId])
+}
+
+/// מאמר לאמהות: חיצוני (מקור וקישור) או שהצוות כתב (טקסט מלא)
+model Article {
+  id         Int             @id @default(autoincrement())
+  authorId   Int
+  title      String
+  summary    String
+  category   ArticleCategory
+  sourceName String?
+  sourceUrl  String?
+  body       String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([category])
+  @@index([createdAt])
+}
