@@ -1,6 +1,7 @@
 import type { DbClient } from "../db/prisma";
 import { joinGeneralConversation } from "../modules/conversations/general";
 import { hashPassword } from "../utils/password";
+import { seedDemoArticles } from "./demoArticles";
 import { seedDemoChats } from "./demoChats";
 
 // נתוני הדגמה לפיתוח ולבדיקה מול ה-React. לא מיועדים לפרודקשן אמיתי.
@@ -59,52 +60,23 @@ export async function seedDemo(db: DbClient, password: string, staffIds: number[
     });
     await joinGeneralConversation(db, user.id);
     motherIds.push(user.id);
-
-    // לו"ז לדוגמה
-    await db.scheduleItem.createMany({
-      data: [
-        { ownerId: user.id, createdById: user.id, category: "APPOINTMENT", type: "WELL_BABY_CLINIC", title: "טיפת חלב", startAt: new Date(now + 2 * DAY), withWhom: "אחות טיפת חלב" },
-        { ownerId: user.id, createdById: user.id, category: "CARE_TASK", type: "VITAMINS", title: "ויטמין D", startAt: new Date(now + DAY) },
-        { ownerId: user.id, createdById: nurseId, staffId: nurseId, category: "APPOINTMENT", type: "SCHEDULED_CHAT", title: "שיחה עם האחות", startAt: new Date(now + 3 * DAY) },
-      ],
-    });
   }
 
   await seedDemoChats(db, motherIds, staffIds);
-  await seedUpcomingSchedule(db, motherIds, nurseId);
-
-  // מאמרי דוגמה. תוכן אמיתי יוסיפו אנשי הצוות דרך המערכת.
-  const articleCount = await db.article.count();
-  if (articleCount === 0) {
-    await db.article.createMany({
-      data: [
-        {
-          authorId: nurseId,
-          title: "[דוגמה] מדריך קצר להאכלת פגים",
-          summary: "מאמר צוות לדוגמה, כדי לראות איך נראה מאמר עם טקסט מלא.",
-          category: "FEEDING",
-          body: "זהו טקסט לדוגמה בלבד. יש להחליף אותו בתוכן אמיתי שנכתב על ידי איש צוות.",
-        },
-        {
-          authorId: nurseId,
-          title: "[דוגמה] מאמר חיצוני",
-          summary: "כרטיס לדוגמה של מאמר מאתר חיצוני. הקישור כאן אינו אמיתי.",
-          category: "EMOTIONAL_SUPPORT",
-          sourceName: "אתר לדוגמה",
-          sourceUrl: "https://example.com/article",
-        },
-      ],
-    });
-  }
+  await seedDemoArticles(db, staffIds);
+  await seedUpcomingSchedule(db, motherIds, staffIds);
 }
 
 const UPCOMING_WEEKS = 4;
 
 /**
- * לו"ז לדוגמה לשבוע הנוכחי ולשבועות הבאים, כדי שתמיד יהיה מה לראות ביומן.
- * שבוע שכבר יש בו פריטים לא נוגעים בו, ולכן אפשר להריץ שוב בלי כפילויות.
+ * לו"ז לדוגמה לשבוע הנוכחי ולשלושת השבועות הבאים, מראשון עד שישי (בשבת אין משימות).
+ * פריט שכבר קיים (אותה כותרת ואותה שעה) לא נוצר שוב, ולכן אפשר להריץ שוב בלי כפילויות.
  */
-async function seedUpcomingSchedule(db: DbClient, motherIds: number[], nurseId: number): Promise<void> {
+async function seedUpcomingSchedule(db: DbClient, motherIds: number[], staffIds: number[]): Promise<void> {
+  const [nurseId, socialId] = staffIds;
+  if (nurseId === undefined || socialId === undefined) return;
+
   const firstWeek = new Date();
   firstWeek.setUTCHours(0, 0, 0, 0);
   firstWeek.setUTCDate(firstWeek.getUTCDate() - firstWeek.getUTCDay()); // יום ראשון
@@ -112,27 +84,37 @@ async function seedUpcomingSchedule(db: DbClient, motherIds: number[], nurseId: 
   for (const motherId of motherIds) {
     for (let week = 0; week < UPCOMING_WEEKS; week++) {
       const weekStart = firstWeek.getTime() + week * 7 * DAY;
-      const existing = await db.scheduleItem.count({
-        where: { ownerId: motherId, startAt: { gte: new Date(weekStart), lt: new Date(weekStart + 7 * DAY) } },
-      });
-      if (existing > 0) continue;
 
       // שעות ב-UTC: 06:00 UTC הוא 08:00 או 09:00 בישראל
       const at = (day: number, hourUtc: number) => new Date(weekStart + day * DAY + hourUtc * 60 * 60 * 1000);
+      const mine = { ownerId: motherId, createdById: motherId };
       const therapy = week % 2 === 0
         ? { type: "PHYSIOTHERAPY" as const, title: "פיזיותרפיה", withWhom: "פיזיותרפיסטית התפתחותית" }
         : { type: "SPEECH_THERAPY" as const, title: "קלינאית תקשורת", withWhom: "קלינאית תקשורת" };
+      const weekdays = [0, 1, 2, 3, 4, 5]; // ראשון עד שישי
 
-      await db.scheduleItem.createMany({
-        data: [
-          { ownerId: motherId, createdById: motherId, category: "CARE_TASK", type: "VITAMINS", title: "ויטמין D", startAt: at(0, 6) },
-          { ownerId: motherId, createdById: motherId, category: "APPOINTMENT", type: "WELL_BABY_CLINIC", title: "טיפת חלב: שקילה ומדידה", startAt: at(1, 7), withWhom: "אחות טיפת חלב" },
-          { ownerId: motherId, createdById: motherId, category: "CARE_TASK", type: "PHYSIO_EXERCISES", title: "תרגילי פיזיותרפיה", startAt: at(2, 11), notes: "10 דקות של זמן בטן" },
-          { ownerId: motherId, createdById: motherId, category: "APPOINTMENT", type: therapy.type, title: therapy.title, startAt: at(3, 8), withWhom: therapy.withWhom },
-          { ownerId: motherId, createdById: nurseId, staffId: nurseId, category: "APPOINTMENT", type: "SCHEDULED_CHAT", title: "שיחה עם האחות", startAt: at(4, 9) },
-          { ownerId: motherId, createdById: motherId, category: "CARE_TASK", type: "MEDICATION", title: "ברזל", startAt: at(5, 6), notes: "לפני ההאכלה" },
-        ],
+      const items = [
+        ...weekdays.map((day) => ({ ...mine, category: "CARE_TASK" as const, type: "VITAMINS" as const, title: "ויטמין D", startAt: at(day, 6) })),
+        ...weekdays.map((day) => ({ ...mine, category: "CARE_TASK" as const, type: "MEDICATION" as const, title: "ברזל", startAt: at(day, day === 5 ? 6 : 16), notes: "לפני ההאכלה" })),
+        ...[0, 2, 4].map((day) => ({ ...mine, category: "CARE_TASK" as const, type: "PHYSIO_EXERCISES" as const, title: "תרגילי פיזיותרפיה", startAt: at(day, 11), notes: "10 דקות של זמן בטן" })),
+        ...[1, 3].map((day) => ({ ...mine, category: "CARE_TASK" as const, type: "INHALATION" as const, title: "אינהלציה", startAt: at(day, 15) })),
+        { ...mine, category: "CARE_TASK" as const, type: "FEEDING" as const, title: "רישום כמויות האכלה", startAt: at(2, 13), notes: "לקראת השקילה הבאה" },
+        { ...mine, category: "APPOINTMENT" as const, type: "WELL_BABY_CLINIC" as const, title: "טיפת חלב: שקילה ומדידה", startAt: at(1, 7), withWhom: "אחות טיפת חלב" },
+        { ...mine, category: "APPOINTMENT" as const, type: therapy.type, title: therapy.title, startAt: at(3, 8), withWhom: therapy.withWhom },
+        { ...mine, category: "APPOINTMENT" as const, type: "MEDICAL_CHECKUP" as const, title: "ביקורת אצל רופא הילדים", startAt: at(2, 8), withWhom: "רופא הילדים" },
+        { ownerId: motherId, createdById: nurseId, staffId: nurseId, category: "APPOINTMENT" as const, type: "SCHEDULED_CHAT" as const, title: "שיחה עם האחות", startAt: at(4, 9) },
+        { ownerId: motherId, createdById: socialId, staffId: socialId, category: "APPOINTMENT" as const, type: "STAFF_MEETING" as const, title: "פגישה עם העובדת הסוציאלית", startAt: at(0, 10) },
+      ];
+
+      const existing = await db.scheduleItem.findMany({
+        where: { ownerId: motherId, startAt: { gte: new Date(weekStart), lt: new Date(weekStart + 7 * DAY) } },
+        select: { title: true, startAt: true },
       });
+      const taken = new Set(existing.map((item) => `${item.title}|${item.startAt.getTime()}`));
+      const missing = items.filter((item) => !taken.has(`${item.title}|${item.startAt.getTime()}`));
+      if (missing.length > 0) {
+        await db.scheduleItem.createMany({ data: missing });
+      }
     }
   }
 }
