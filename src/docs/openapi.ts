@@ -125,7 +125,7 @@ export const openApiDocument: Json = {
       },
       put: {
         tags: ["Profile"],
-        summary: "עריכת הפרופיל (אמהות בלבד). שדה שלא נשלח לא משתנה.",
+        summary: "עריכת הפרופיל (אמהות וצוות). שדה שלא נשלח לא משתנה. פרטי התינוק מתעדכנים רק אצל אמא.",
         security: secured,
         requestBody: jsonBody(ref("UpdateProfileRequest")),
         responses: {

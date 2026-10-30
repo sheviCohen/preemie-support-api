@@ -24,3 +24,8 @@ services:
         sync: false
       - key: SEED_STAFF_PASSWORD
         sync: false
+      # נתוני הדגמה (אמהות, מאמרים, לו"ז לשבועות הקרובים) נוצרים בכל הפעלה של השרת
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: SEED_DEMO_PASSWORD
+        sync: false

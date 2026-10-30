@@ -87,6 +87,8 @@ export async function seedDemo(db: DbClient, password: string, staffIds: number[
     }
   }
 
+  await seedUpcomingSchedule(db, motherIds, nurseId);
+
   // מאמרי דוגמה. תוכן אמיתי יוסיפו אנשי הצוות דרך המערכת.
   const articleCount = await db.article.count();
   if (articleCount === 0) {
@@ -109,5 +111,44 @@ export async function seedDemo(db: DbClient, password: string, staffIds: number[
         },
       ],
     });
+  }
+}
+
+const UPCOMING_WEEKS = 4;
+
+/**
+ * לו"ז לדוגמה לשבוע הנוכחי ולשבועות הבאים, כדי שתמיד יהיה מה לראות ביומן.
+ * שבוע שכבר יש בו פריטים לא נוגעים בו, ולכן אפשר להריץ שוב בלי כפילויות.
+ */
+async function seedUpcomingSchedule(db: DbClient, motherIds: number[], nurseId: number): Promise<void> {
+  const firstWeek = new Date();
+  firstWeek.setUTCHours(0, 0, 0, 0);
+  firstWeek.setUTCDate(firstWeek.getUTCDate() - firstWeek.getUTCDay()); // יום ראשון
+
+  for (const motherId of motherIds) {
+    for (let week = 0; week < UPCOMING_WEEKS; week++) {
+      const weekStart = firstWeek.getTime() + week * 7 * DAY;
+      const existing = await db.scheduleItem.count({
+        where: { ownerId: motherId, startAt: { gte: new Date(weekStart), lt: new Date(weekStart + 7 * DAY) } },
+      });
+      if (existing > 0) continue;
+
+      // שעות ב-UTC: 06:00 UTC הוא 08:00 או 09:00 בישראל
+      const at = (day: number, hourUtc: number) => new Date(weekStart + day * DAY + hourUtc * 60 * 60 * 1000);
+      const therapy = week % 2 === 0
+        ? { type: "PHYSIOTHERAPY" as const, title: "פיזיותרפיה", withWhom: "פיזיותרפיסטית התפתחותית" }
+        : { type: "SPEECH_THERAPY" as const, title: "קלינאית תקשורת", withWhom: "קלינאית תקשורת" };
+
+      await db.scheduleItem.createMany({
+        data: [
+          { ownerId: motherId, createdById: motherId, category: "CARE_TASK", type: "VITAMINS", title: "ויטמין D", startAt: at(0, 6) },
+          { ownerId: motherId, createdById: motherId, category: "APPOINTMENT", type: "WELL_BABY_CLINIC", title: "טיפת חלב: שקילה ומדידה", startAt: at(1, 7), withWhom: "אחות טיפת חלב" },
+          { ownerId: motherId, createdById: motherId, category: "CARE_TASK", type: "PHYSIO_EXERCISES", title: "תרגילי פיזיותרפיה", startAt: at(2, 11), notes: "10 דקות של זמן בטן" },
+          { ownerId: motherId, createdById: motherId, category: "APPOINTMENT", type: therapy.type, title: therapy.title, startAt: at(3, 8), withWhom: therapy.withWhom },
+          { ownerId: motherId, createdById: nurseId, staffId: nurseId, category: "APPOINTMENT", type: "SCHEDULED_CHAT", title: "שיחה עם האחות", startAt: at(4, 9) },
+          { ownerId: motherId, createdById: motherId, category: "CARE_TASK", type: "MEDICATION", title: "ברזל", startAt: at(5, 6), notes: "לפני ההאכלה" },
+        ],
+      });
+    }
   }
 }

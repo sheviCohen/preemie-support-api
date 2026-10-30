@@ -6,6 +6,7 @@ import { startReminderJob, stopReminderJob } from "./jobs/reminders";
 import { getOrCreateGeneralConversation } from "./modules/conversations/general";
 import { initRealtime } from "./realtime/socket";
 import { bootstrap } from "./seed/bootstrap";
+import { seedDemo } from "./seed/demo";
 
 async function main(): Promise<void> {
   await prisma.$connect();
@@ -13,9 +14,16 @@ async function main(): Promise<void> {
 
   // אם הוגדרה סיסמת צוות, מוודאים שאנשי הצוות קיימים (בטוח להרצה חוזרת, לא משנה סיסמאות קיימות)
   if (env.SEED_STAFF_PASSWORD) {
-    const { created } = await bootstrap(prisma, env.SEED_STAFF_PASSWORD);
+    const { created, staffIds } = await bootstrap(prisma, env.SEED_STAFF_PASSWORD);
     if (created > 0) {
       console.log(`נוצרו ${created} אנשי צוות`);
+    }
+
+    // נתוני הדגמה (אמהות, מאמרים, לו"ז לשבועות הקרובים). בטוח להרצה חוזרת: מה שקיים לא משתנה,
+    // ובכל הפעלה מתמלאים שבועות חדשים שעוד ריקים בלו"ז.
+    if (env.SEED_DEMO_DATA && env.SEED_DEMO_PASSWORD) {
+      await seedDemo(prisma, env.SEED_DEMO_PASSWORD, staffIds);
+      console.log("נתוני הדגמה עודכנו");
     }
   }
 

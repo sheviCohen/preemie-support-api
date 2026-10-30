@@ -8,7 +8,8 @@ profileRouter.use(authenticate);
 
 // הפרופיל המשותף (אמא + תינוק): רק אמהות. איש צוות רואה את הפרטים שלו דרך GET /api/auth/me.
 profileRouter.get("/", requireRole("MOTHER"), controller.getProfile);
-profileRouter.put("/", requireRole("MOTHER"), controller.updateProfile);
+// עריכה: לכל משתמש/ת מחוברים. פרטי התינוק מתעדכנים רק אצל אמא (ראו profile.service).
+profileRouter.put("/", controller.updateProfile);
 
 // תמונת פרופיל: לכל משתמש/ת מחוברים
 profileRouter.put("/avatar", controller.setAvatar);

@@ -1,10 +1,11 @@
 import { prisma, isUniqueViolation } from "../../db/prisma";
 import { conflict } from "../../utils/httpError";
 import { toSelfDto } from "../users/user.serializers";
+import type { Role } from "../../domain/constants";
 import type { UpdateProfileInput } from "./profile.schemas";
 
-/** עריכת הפרופיל המשותף של האמא והתינוק. שדה שלא נשלח לא משתנה. */
-export async function updateProfile(userId: number, input: UpdateProfileInput) {
+/** עריכת פרופיל. שדה שלא נשלח לא משתנה. פרטי התינוק מתעדכנים רק אצל אמא, כי לאיש צוות אין תינוק. */
+export async function updateProfile(userId: number, role: Role, input: UpdateProfileInput) {
   try {
     const user = await prisma.user.update({
       where: { id: userId },
@@ -14,7 +15,7 @@ export async function updateProfile(userId: number, input: UpdateProfileInput) {
         phone: input.phone,
         email: input.email,
         city: input.city,
-        ...(input.baby
+        ...(input.baby && role === "MOTHER"
           ? {
               baby: {
                 update: {

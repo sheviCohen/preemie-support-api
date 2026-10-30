@@ -12,7 +12,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 export const updateProfile = asyncHandler(async (req, res) => {
   const user = requireUser(req);
   const input = updateProfileSchema.parse(req.body);
-  res.json({ user: await profileService.updateProfile(user.id, input) });
+  res.json({ user: await profileService.updateProfile(user.id, user.role, input) });
 });
 
 export const setAvatar = asyncHandler(async (req, res) => {
