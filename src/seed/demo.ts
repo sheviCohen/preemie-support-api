@@ -1,6 +1,7 @@
 import type { DbClient } from "../db/prisma";
 import { joinGeneralConversation } from "../modules/conversations/general";
 import { hashPassword } from "../utils/password";
+import { seedDemoChats } from "./demoChats";
 
 // נתוני הדגמה לפיתוח ולבדיקה מול ה-React. לא מיועדים לפרודקשן אמיתי.
 
@@ -17,6 +18,16 @@ export async function seedDemo(db: DbClient, password: string, staffIds: number[
   const mothers = [
     { email: "mother1@example.test", firstName: "שרה", lastName: "גולד", phone: "0510000001", city: "ירושלים", baby: { name: "נועם", weeks: 31, grams: 1400, born: now - 60 * DAY } },
     { email: "mother2@example.test", firstName: "לאה", lastName: "פרידמן", phone: "0510000002", city: "בני ברק", baby: { name: "יעל", weeks: 28, grams: 1100, born: now - 120 * DAY } },
+    { email: "mother3@example.test", firstName: "רבקה", lastName: "כץ", phone: "0510000003", city: "פתח תקווה", baby: { name: "אריאל", weeks: 30, grams: 1300, born: now - 45 * DAY } },
+    { email: "mother4@example.test", firstName: "חנה", lastName: "לוין", phone: "0510000004", city: "חיפה", baby: { name: "שירה", weeks: 32, grams: 1650, born: now - 30 * DAY } },
+    { email: "mother5@example.test", firstName: "מרים", lastName: "אדלר", phone: "0510000005", city: "אשדוד", baby: { name: "יוסף", weeks: 29, grams: 1200, born: now - 90 * DAY } },
+    { email: "mother6@example.test", firstName: "אסתר", lastName: "שפירא", phone: "0510000006", city: "מודיעין", baby: { name: "נגה", weeks: 33, grams: 1800, born: now - 20 * DAY } },
+    { email: "mother7@example.test", firstName: "דבורה", lastName: "רוזן", phone: "0510000007", city: "רחובות", baby: { name: "אליה", weeks: 27, grams: 950, born: now - 150 * DAY } },
+    { email: "mother8@example.test", firstName: "שושנה", lastName: "ברגר", phone: "0510000008", city: "בית שמש", baby: { name: "מתן", weeks: 34, grams: 2000, born: now - 15 * DAY } },
+    { email: "mother9@example.test", firstName: "יהודית", lastName: "קליין", phone: "0510000009", city: "נתניה", baby: { name: "הדס", weeks: 31, grams: 1500, born: now - 70 * DAY } },
+    { email: "mother10@example.test", firstName: "נעמי", lastName: "גרין", phone: "0510000010", city: "ירושלים", baby: { name: "אורי", weeks: 30, grams: 1350, born: now - 100 * DAY } },
+    { email: "mother11@example.test", firstName: "תמר", lastName: "וייס", phone: "0510000011", city: "אלעד", baby: { name: "אביגיל", weeks: 29, grams: 1250, born: now - 50 * DAY } },
+    { email: "mother12@example.test", firstName: "רחל", lastName: "הורוביץ", phone: "0510000012", city: "חולון", baby: { name: "דוד", weeks: 32, grams: 1700, born: now - 35 * DAY } },
   ];
 
   const motherIds: number[] = [];
@@ -59,34 +70,7 @@ export async function seedDemo(db: DbClient, password: string, staffIds: number[
     });
   }
 
-  // שיחה פרטית לדוגמה בין האחות לאמא הראשונה, עם הודעה שלא נקראה
-  const first = motherIds[0];
-  if (first !== undefined) {
-    const directKey = `${Math.min(first, nurseId)}-${Math.max(first, nurseId)}`;
-    const existing = await db.conversation.findUnique({ where: { directKey }, select: { id: true } });
-    if (!existing) {
-      const conversation = await db.conversation.create({
-        data: {
-          type: "DIRECT",
-          directKey,
-          members: { create: [{ userId: first }, { userId: nurseId, lastReadAt: new Date() }] },
-          messages: { create: [{ senderId: nurseId, content: "שלום, אני כאן אם יש שאלות על התינוק." }] },
-        },
-        select: { id: true },
-      });
-      await db.notification.create({
-        data: {
-          userId: first,
-          type: "NEW_CHAT",
-          title: "שיחה חדשה",
-          body: "רחל לוי פתחה שיחה איתך",
-          link: `/chats/${conversation.id}`,
-          conversationId: conversation.id,
-        },
-      });
-    }
-  }
-
+  await seedDemoChats(db, motherIds, staffIds);
   await seedUpcomingSchedule(db, motherIds, nurseId);
 
   // מאמרי דוגמה. תוכן אמיתי יוסיפו אנשי הצוות דרך המערכת.
