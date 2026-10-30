@@ -10,7 +10,7 @@ export interface HealthFundLink {
 
 export const HEALTH_FUND_LINKS: readonly HealthFundLink[] = [
   { id: "clalit", name: "כללית", url: "https://www.clalit.co.il" },
-  { id: "maccabi", name: "מכבי שירותי בריאות", url: "https://www.maccabi4u.co.il" },
+  { id: "maccabi", name: "מכבי", url: "https://www.maccabi4u.co.il" },
   { id: "meuhedet", name: "מאוחדת", url: "https://www.meuhedet.co.il" },
   { id: "leumit", name: "לאומית", url: "https://www.leumit.co.il" },
 ];
